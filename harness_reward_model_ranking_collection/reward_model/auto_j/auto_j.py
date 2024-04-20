@@ -7,9 +7,8 @@ from vllm import LLM, SamplingParams
 
 from ..base import BaseRewardModel
 
-# https://github.com/GAIR-NLP/auto-j/tree/main
 
-
+# https://github.com/GAIR-NLP/auto-j/tree/main=
 def extract_pariwise_result(raw_output):
     raw_output = raw_output.strip()
     pos = raw_output.rfind("final decision is ")

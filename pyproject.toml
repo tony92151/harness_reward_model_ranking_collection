@@ -7,11 +7,10 @@ package = [
     {include = "harness_reward_model_ranking_collection"}
 ]
 
-
-
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.11"
 transformers = "^4.11.3"
 torch = "^1.10.0"
 tqdm = "^4.62.3"
+vllm = "^0.2.7"
 
