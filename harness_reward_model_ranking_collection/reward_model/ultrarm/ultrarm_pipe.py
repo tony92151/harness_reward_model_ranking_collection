@@ -55,19 +55,19 @@ Assistant: {completion}"""
 
 
 class UltrarmPipe(BaseRewardModel):
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.tokenizer = LlamaTokenizer.from_pretrained(ULTRARM_MODEL_ID)
         self.model = LlamaRewardModel.from_pretrained(ULTRARM_MODEL_ID)
 
     def get_reward_candidates(
-        self,
-        instruction: str,
-        candidates: list[str],
-        top_k: int = 3,
-        rejected_candidates: Optional[list[dict]] = None,
+        self, instruction: str, candidates: list[str], top_k: int = 3, **kwargs
     ) -> list[str]:
         for candidate in candidates:
             self.check_candidate(candidate)
+
+        rejected_candidates: Optional[list[dict]] = kwargs.get(
+            "rejected_candidates", None
+        )
 
         if rejected_candidates:
             assert len(candidates) == len(

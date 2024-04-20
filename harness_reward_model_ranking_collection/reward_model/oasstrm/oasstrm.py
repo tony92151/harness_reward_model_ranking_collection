@@ -4,7 +4,7 @@ from ..base import BaseRewardModel
 
 
 class OasstrmPipe(BaseRewardModel):
-    def __init__(self):
+    def __init__(self, **kwargs):
         reward_name = "OpenAssistant/reward-model-deberta-v3-large-v2"
         self.rank_model = AutoModelForSequenceClassification.from_pretrained(
             reward_name

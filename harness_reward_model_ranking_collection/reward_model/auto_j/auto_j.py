@@ -1,11 +1,11 @@
 from functools import lru_cache
 
 import torch
-from constants_prompt import \
-    build_autoj_input  # constants_prompt -> codes/constants_prompt.py
 from vllm import LLM, SamplingParams
 
 from ..base import BaseRewardModel
+from .constants_prompt import \
+    build_autoj_input  # constants_prompt -> codes/constants_prompt.py
 
 
 # https://github.com/GAIR-NLP/auto-j/tree/main=
@@ -35,7 +35,7 @@ def extract_single_rating(score_output):
 
 
 class AutoJPipe(BaseRewardModel):
-    def __init__(self):
+    def __init__(self, **kwargs):
         num_gpus = torch.cuda.device_count()
         model_name_or_dir = (
             "GAIR/autoj-13b"  # or the local directory to store the downloaded model
