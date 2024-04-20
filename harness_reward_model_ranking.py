@@ -66,10 +66,10 @@ class RewardModelRanking(LM):
             list(sub_arr) for sub_arr in np.array_split(inp_list, num_batches)
         ], untils
 
-    def _get_cache(self, target_mode: str, task: str, request_text: str) -> None:
+    def _get_cache(self, target_mode: str, task: str, request_text: str) -> Union[str, None]:
         if target_mode not in self._cache:
             self._cache[target_mode] = self._load_cache(target_mode, task)
-        return self._cache[target_mode][request_text]
+        return self._cache[target_mode].get(request_text, None)
 
     def _load_cache(self, target_mode: str, task: str) -> None:
         target_mode = target_mode.replace("/", "_")
@@ -94,9 +94,9 @@ class RewardModelRanking(LM):
             candidate_list: list[str] = []
 
             for target_model in self.models:
-                candidate_list.append(
-                    self._get_cache(target_model, request.task_name, request.args[0])
-                )
+                cache_value = self._get_cache(target_model, request.task_name, request.args[0])
+                assert cache_value is not None, f"Cache value for {target_model} is not found. Please check the cache file."
+                candidate_list.append(cache_value)
 
             instruction = request.args[0].split("\n\n")[-1]
             rank_result = self.reward_model_pipe.rank(
