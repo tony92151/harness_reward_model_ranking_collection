@@ -13,7 +13,9 @@ from lm_eval.api.registry import register_model
 from tqdm import tqdm
 
 from harness_reward_model_ranking_collection.entry import (
-    REWARD_MODEL_MAP, RewardModelRankingEntry)
+    REWARD_MODEL_MAP,
+    RewardModelRankingEntry,
+)
 
 
 @register_model("rmr", "reward_model_ranking")
@@ -66,7 +68,9 @@ class RewardModelRanking(LM):
             list(sub_arr) for sub_arr in np.array_split(inp_list, num_batches)
         ], untils
 
-    def _get_cache(self, target_mode: str, task: str, request_text: str) -> Union[str, None]:
+    def _get_cache(
+        self, target_mode: str, task: str, request_text: str
+    ) -> Union[str, None]:
         if target_mode not in self._cache:
             self._cache[target_mode] = self._load_cache(target_mode, task)
         return self._cache[target_mode].get(request_text, None)
@@ -89,18 +93,23 @@ class RewardModelRanking(LM):
     def generate_until(self, requests: list[Instance]) -> list[str]:
         if not requests:
             return []
-
+        total_results = []
         for request in tqdm(requests):
             candidate_list: list[str] = []
 
             for target_model in self.models:
-                cache_value = self._get_cache(target_model, request.task_name, request.args[0])
-                assert cache_value is not None, f"Cache value for {target_model} is not found. Please check the cache file."
+                cache_value = self._get_cache(
+                    target_model, request.task_name, request.args[0]
+                )
+                assert (
+                    cache_value is not None
+                ), f"Cache value for {target_model} is not found. Please check the cache file."
                 candidate_list.append(cache_value)
 
             instruction = request.args[0].split("\n\n")[-1]
             rank_result = self.reward_model_pipe.rank(
                 instruction, candidate_list, top_k=3
             )
+            total_results.append(rank_result)
 
-            return rank_result[0]
+        return total_results
