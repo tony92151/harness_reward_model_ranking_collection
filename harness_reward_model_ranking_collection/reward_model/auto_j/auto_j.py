@@ -4,8 +4,9 @@ import torch
 from vllm import LLM, SamplingParams
 
 from ..base import BaseRewardModel
-from .constants_prompt import \
-    build_autoj_input  # constants_prompt -> codes/constants_prompt.py
+from .constants_prompt import (
+    build_autoj_input,
+)  # constants_prompt -> codes/constants_prompt.py
 
 
 # https://github.com/GAIR-NLP/auto-j/tree/main=

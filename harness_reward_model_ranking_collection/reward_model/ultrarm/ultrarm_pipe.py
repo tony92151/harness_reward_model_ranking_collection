@@ -3,8 +3,7 @@ from typing import List, Optional
 import torch
 import torch.nn as nn
 from tqdm import tqdm
-from transformers import (LlamaConfig, LlamaModel, LlamaTokenizer,
-                          PreTrainedModel)
+from transformers import LlamaConfig, LlamaModel, LlamaTokenizer, PreTrainedModel
 
 from ..base import BaseRewardModel
 
