@@ -110,6 +110,7 @@ class RewardModelRanking(LM):
             rank_result = self.reward_model_pipe.rank(
                 instruction, candidate_list, top_k=3
             )
-            total_results.append(rank_result)
+
+            total_results.append(rank_result[0])
 
         return total_results
