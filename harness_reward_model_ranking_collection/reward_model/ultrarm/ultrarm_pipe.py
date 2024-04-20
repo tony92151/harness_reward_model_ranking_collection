@@ -6,7 +6,7 @@ from tqdm import tqdm
 from transformers import (LlamaConfig, LlamaModel, LlamaTokenizer,
                           PreTrainedModel)
 
-from .base import BaseRewardModel
+from ..base import BaseRewardModel
 
 ULTRARM_MODEL_ID = "openbmb/UltraRM-13b"
 
@@ -54,11 +54,6 @@ ultrarm_template = """Human: {instruction}
 Assistant: {completion}"""
 
 
-def check_candidate(candidate: dict):
-    assert "instruction" in candidate, "Candidate must contain 'instruction'"
-    assert "completion" in candidate, "Candidate must contain 'completion'"
-
-
 class UltrarmPipe(BaseRewardModel):
     def __init__(self):
         self.tokenizer = LlamaTokenizer.from_pretrained(ULTRARM_MODEL_ID)
@@ -66,33 +61,34 @@ class UltrarmPipe(BaseRewardModel):
 
     def get_reward_candidates(
         self,
-        candidates: list[dict],
+        instruction: str,
+        candidates: list[str],
         top_k: int = 3,
         rejected_candidates: Optional[list[dict]] = None,
-    ) -> list[dict]:
+    ) -> list[str]:
         for candidate in candidates:
-            check_candidate(candidate)
+            self.check_candidate(candidate)
 
         if rejected_candidates:
             assert len(candidates) == len(
                 rejected_candidates
             ), "Candidates and rejected candidates must have the same length"
             for rejected_candidate in rejected_candidates:
-                check_candidate(rejected_candidate)
+                self.check_candidate(rejected_candidate)
 
         rewards = []
         for idx, _ in tqdm(enumerate(candidates), desc="Getting UltraRM rewards"):
             ultrarm_text = ultrarm_template.format(
-                instruction=candidates[idx]["instruction"],
-                completion=candidates[idx]["completion"],
+                instruction=instruction,
+                completion=candidates[idx],
             )
             inputs = self.tokenizer(ultrarm_text, return_tensors="pt")
             chosen_reward = self.model(**inputs).item()
 
             if rejected_candidates:
                 rejected_ultrarm_text = ultrarm_template.format(
-                    instruction=rejected_candidates[idx]["instruction"],
-                    completion=rejected_candidates[idx]["completion"],
+                    instruction=instruction,
+                    completion=rejected_candidates[idx],
                 )
                 inputs = self.tokenizer(rejected_ultrarm_text, return_tensors="pt")
                 rejected_reward = self.model(**inputs).item()

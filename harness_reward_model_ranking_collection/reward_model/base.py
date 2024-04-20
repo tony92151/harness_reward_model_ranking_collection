@@ -3,6 +3,6 @@ class BaseRewardModel:
         pass
 
     def get_reward_candidates(
-        self, candidates: list[dict], top_k: int = 3
-    ) -> list[dict]:
+        self, instruction: str, candidates: list[str], top_k: int = 3
+    ) -> list[str]:
         raise NotImplementedError
