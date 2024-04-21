@@ -76,7 +76,7 @@ class RewardModelRanking(LM):
         return self._cache[target_mode].get(request_text, None)
 
     def _load_cache(self, target_mode: str, task: str) -> None:
-        target_mode = target_mode.replace("/", "_")
+        target_mode = target_mode.replace("/", "-")
         cache_file = os.path.join(
             os.path.abspath(self.cache_path), f"{task}_{target_mode}.pt"
         )
