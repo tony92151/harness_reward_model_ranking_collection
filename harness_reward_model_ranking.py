@@ -13,9 +13,7 @@ from lm_eval.api.registry import register_model
 from tqdm import tqdm
 
 from harness_reward_model_ranking_collection.entry import (
-    REWARD_MODEL_MAP,
-    RewardModelRankingEntry,
-)
+    REWARD_MODEL_MAP, RewardModelRankingEntry)
 
 
 @register_model("rmr", "reward_model_ranking")
@@ -43,6 +41,7 @@ class RewardModelRanking(LM):
         self.cache_path = self.rm_kwargs.get("cache_path", None)
         assert self.cache_path is not None, "Cache path is not provided."
 
+        print(f"Reward model: {self.rm_name}")
         self.reward_model_pipe = RewardModelRankingEntry(
             reward_model_id=self.rm_name, **self.rm_kwargs
         )

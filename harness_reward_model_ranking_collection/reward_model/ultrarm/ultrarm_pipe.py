@@ -3,7 +3,8 @@ from typing import List, Optional
 import torch
 import torch.nn as nn
 from tqdm import tqdm
-from transformers import LlamaConfig, LlamaModel, LlamaTokenizer, PreTrainedModel
+from transformers import (LlamaConfig, LlamaModel, LlamaTokenizer,
+                          PreTrainedModel)
 
 from ..base import BaseRewardModel
 
@@ -56,7 +57,9 @@ Assistant: {completion}"""
 class UltrarmPipe(BaseRewardModel):
     def __init__(self, **kwargs):
         self.tokenizer = LlamaTokenizer.from_pretrained(ULTRARM_MODEL_ID)
-        self.model = LlamaRewardModel.from_pretrained(ULTRARM_MODEL_ID)
+        self.model = LlamaRewardModel.from_pretrained(
+            ULTRARM_MODEL_ID, device_map="auto"
+        )
 
     def get_reward_candidates(
         self, instruction: str, candidates: list[str], top_k: int = 3, **kwargs
