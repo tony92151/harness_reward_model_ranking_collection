@@ -57,12 +57,10 @@ class AutoJPipe(BaseRewardModel):
         outputs = self.llm.generate(input_pairwise, sampling_params)
         judgment = outputs[0].text
         return extract_pariwise_result(judgment)
-
+    
     def get_reward_candidates(
-        self, instruction: str, candidates: list[dict], top_k: int = 3, **kwargs
-    ) -> list[dict]:
-        for candidate in candidates:
-            self.check_candidate(candidate)
+        self, instruction: str, candidates: list[str], top_k: int = 3, **kwargs
+    ) -> list[str]:
 
         use_pairwise: bool = kwargs.get("use_pairwise", False)
 
@@ -77,7 +75,7 @@ class AutoJPipe(BaseRewardModel):
                     temperature=0.0, top_p=1.0, max_tokens=1024
                 )
                 outputs = self.llm.generate(input_, sampling_params)
-                judgment = outputs[0].text
+                judgment = outputs[0].outputs[0].text
                 score = extract_single_rating(judgment)
                 rewards.append(score)
             return [
