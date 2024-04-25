@@ -1,5 +1,5 @@
 from functools import lru_cache
-
+import os
 import torch
 from vllm import LLM, SamplingParams
 
@@ -64,6 +64,8 @@ class AutoJPipe(BaseRewardModel):
 
         use_pairwise: bool = kwargs.get("use_pairwise", False)
 
+        max_tokens = os.getenv("MAX_NEW_TOKEN", 1024)
+
         if not use_pairwise:
             rewards = []
             for candidate in candidates:
@@ -72,7 +74,7 @@ class AutoJPipe(BaseRewardModel):
                 )  # for single response evaluation
                 input_ = input_single
                 sampling_params = SamplingParams(
-                    temperature=0.0, top_p=1.0, max_tokens=1024
+                    temperature=0.0, top_p=1.0, max_tokens=max_tokens
                 )
                 outputs = self.llm.generate(input_, sampling_params)
                 judgment = outputs[0].outputs[0].text

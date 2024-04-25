@@ -58,16 +58,16 @@ class UltrarmPipe(BaseRewardModel):
     def __init__(self, **kwargs):
         self.tokenizer = LlamaTokenizer.from_pretrained(ULTRARM_MODEL_ID)
         self.model = LlamaRewardModel.from_pretrained(
-            ULTRARM_MODEL_ID, device_map="auto"
+            ULTRARM_MODEL_ID
         )
+        self.device = torch.device("cuda:0")
+        self.model = self.model.to(self.device)
 
     def get_reward_candidates(
         self, instruction: str, candidates: list[str], top_k: int = 3, **kwargs
     ) -> list[str]:
-        for candidate in candidates:
-            self.check_candidate(candidate)
 
-        rejected_candidates: Optional[list[dict]] = kwargs.get(
+        rejected_candidates: Optional[list[str]] = kwargs.get(
             "rejected_candidates", None
         )
 
@@ -79,12 +79,12 @@ class UltrarmPipe(BaseRewardModel):
                 self.check_candidate(rejected_candidate)
 
         rewards = []
-        for idx, _ in tqdm(enumerate(candidates), desc="Getting UltraRM rewards"):
+        for idx, _ in enumerate(candidates):
             ultrarm_text = ultrarm_template.format(
                 instruction=instruction,
                 completion=candidates[idx],
             )
-            inputs = self.tokenizer(ultrarm_text, return_tensors="pt")
+            inputs = self.tokenizer(ultrarm_text, return_tensors="pt").to(self.device)
             chosen_reward = self.model(**inputs).item()
 
             if rejected_candidates:
