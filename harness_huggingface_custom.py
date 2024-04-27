@@ -35,6 +35,9 @@ from lm_eval.models.utils import (
 )
 
 
+from optimum_benchmark.trackers.latency import PerTokenLatencyLogitsProcessor
+from transformers import LogitsProcessorList
+
 eval_logger = utils.eval_logger
 
 
@@ -1091,6 +1094,7 @@ class HFLM(TemplateLM):
         self, requests: List[Instance], disable_tqdm: bool = False
     ) -> List[str]:
         res = []
+        res_latency = []
 
         def _collate(req: Tuple[str, dict]):
             """Defines the key for the sorted method"""
@@ -1191,14 +1195,24 @@ class HFLM(TemplateLM):
 
             if "max_length" not in kwargs:
                 kwargs["max_length"] = context_enc.shape[1] + max_gen_toks
+            
 
+            device_str = f"{self.model.device.type}:{self.model.device.index}"
+            latency_tracker = PerTokenLatencyLogitsProcessor(device=device_str, backend="torch")
+            kwargs['logits_processor'] = LogitsProcessorList([latency_tracker])
+            
             # perform batched generation
-            cont = self._model_generate(
-                context=context_enc,
-                attention_mask=attn_masks,
-                stop=until,
-                **kwargs,
-            )
+            with latency_tracker.track():
+                cont = self._model_generate(
+                    context=context_enc,
+                    attention_mask=attn_masks,
+                    stop=until,
+                    **kwargs,
+                )
+
+            batch_per_token_latency = latency_tracker.get_per_token_latency().mean
+            batch_prefill_latency = latency_tracker.get_prefill_latency().mean
+            batch_decode_latency = latency_tracker.get_decode_latency().mean
 
             cont_toks_list = cont.tolist()
             for cont_toks, context in zip(cont_toks_list, contexts):
@@ -1216,6 +1230,13 @@ class HFLM(TemplateLM):
                         s = s.split(term)[0]
 
                 res.append(s)
+                res_latency.append(
+                    {
+                        "per_token_latency": batch_per_token_latency,
+                        "prefill_latency": batch_prefill_latency,
+                        "decode_latency": batch_decode_latency,
+                    }
+                )
 
                 self.cache_hook.add_partial("generate_until", (context, gen_kwargs), s)
                 pbar.update(1)
@@ -1227,8 +1248,8 @@ class HFLM(TemplateLM):
         cache = {} 
         context_list = [i[0] for i in [req.args for req in requests]]
         assert len(context_list) == len(res)
-        for c, r in zip(context_list, res):
-            cache[c] = r
+        for c, r, l in zip(context_list, res, res_latency):
+            cache[c] = {"response": r, "latency": l}
 
         if os.getenv("TASK") and os.getenv("HARNESS_HF_CACHE") and os.getenv("MODEL"):
             os.makedirs(os.getenv("HARNESS_HF_CACHE"), exist_ok=True)
