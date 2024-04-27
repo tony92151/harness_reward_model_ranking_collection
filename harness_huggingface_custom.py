@@ -1235,6 +1235,7 @@ class HFLM(TemplateLM):
                         "per_token_latency": batch_per_token_latency,
                         "prefill_latency": batch_prefill_latency,
                         "decode_latency": batch_decode_latency,
+                        "num_generate_tokens": len(cont_toks),
                     }
                 )
 
