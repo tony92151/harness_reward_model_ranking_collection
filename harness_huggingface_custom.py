@@ -1243,6 +1243,7 @@ class HFLM(TemplateLM):
                 pbar.update(1)
         # reorder this group of results back to original unsorted form
         res = re_ords.get_original(res)
+        res_latency = re_ords.get_original(res_latency)
 
         pbar.close()
 
