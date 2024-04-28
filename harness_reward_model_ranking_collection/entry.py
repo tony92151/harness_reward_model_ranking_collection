@@ -22,5 +22,5 @@ class RewardModelRankingEntry:
 
     def rank(
         self, instruction: str, candidates: list[str], top_k: int = 3, **kwargs
-    ) -> list[str]:
+    ) -> tuple[list[str], list[float]]:
         return self.pipe.get_reward_candidates(instruction, candidates, top_k, **kwargs)

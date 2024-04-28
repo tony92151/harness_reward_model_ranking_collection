@@ -92,6 +92,8 @@ class RewardModelRanking(LM):
     def generate_until(self, requests: list[Instance]) -> list[str]:
         if not requests:
             return []
+
+        cache = {}
         total_results = []
         for request in tqdm(requests):
             candidate_list: list[str] = []
@@ -106,10 +108,33 @@ class RewardModelRanking(LM):
                 candidate_list.append(cache_value)
 
             instruction = request.args[0].split("\n\n")[-1]
-            rank_result = self.reward_model_pipe.rank(
+            rank_result, time_cost = self.reward_model_pipe.rank(
                 instruction, candidate_list, top_k=3
             )
 
             total_results.append(rank_result[0])
+            cache[request.args[0]] = {
+                "candidate_dict": {
+                    m: {"text": c, "latency": t}
+                    for c, m, t in zip(self.models, candidate_list, time_cost)
+                },
+                "final_candidate_model": self.models[
+                    candidate_list.index(rank_result[0])
+                ],
+                "final_rank_result": rank_result[0],
+            }
+
+        if os.getenv("TASK") and os.getenv("HARNESS_HF_CACHE") and os.getenv("MODEL"):
+            os.makedirs(os.getenv("HARNESS_HF_CACHE"), exist_ok=True)
+
+            combine_models_ = "_".join(
+                [target_model.replace("/", "-") for target_model in self.models]
+            )
+            save_path = os.path.join(
+                os.getenv("HARNESS_HF_CACHE"),
+                f'{self.rm_name}_{os.getenv("TASK")}_{combine_models_}.pt',
+            )
+            print(f"Save to cache {save_path}")
+            torch.save(cache, save_path)
 
         return total_results

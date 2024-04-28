@@ -1,3 +1,5 @@
+import time
+
 import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
@@ -18,13 +20,18 @@ class OasstrmPipe(BaseRewardModel):
 
     def get_reward_candidates(
         self, instruction: str, candidates: list[str], top_k: int = 3
-    ) -> list[str]:
+    ) -> tuple[list[str], list[float]]:
+        time_cost = []
         rewards = []
         for candidate in candidates:
+            _t = time.time()
             inputs = self.tokenizer(instruction, candidate, return_tensors="pt").to(
                 self.rank_model.device
             )
             score = self.rank_model(**inputs).logits[0].cpu().detach()
             rewards.append(score)
+            time_cost.append(time.time() - _t)
 
-        return [c for _, c in sorted(zip(rewards, candidates), reverse=True)[:top_k]]
+        return [
+            c for _, c in sorted(zip(rewards, candidates), reverse=True)[:top_k]
+        ], time_cost

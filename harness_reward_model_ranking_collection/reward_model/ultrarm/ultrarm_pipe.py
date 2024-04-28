@@ -1,3 +1,5 @@
+import os
+import time
 from typing import List, Optional
 
 import torch
@@ -57,16 +59,13 @@ Assistant: {completion}"""
 class UltrarmPipe(BaseRewardModel):
     def __init__(self, **kwargs):
         self.tokenizer = LlamaTokenizer.from_pretrained(ULTRARM_MODEL_ID)
-        self.model = LlamaRewardModel.from_pretrained(
-            ULTRARM_MODEL_ID
-        )
+        self.model = LlamaRewardModel.from_pretrained(ULTRARM_MODEL_ID)
         self.device = torch.device("cuda:0")
         self.model = self.model.to(self.device)
 
     def get_reward_candidates(
         self, instruction: str, candidates: list[str], top_k: int = 3, **kwargs
-    ) -> list[str]:
-
+    ) -> tuple[list[str], list[float]]:
         rejected_candidates: Optional[list[str]] = kwargs.get(
             "rejected_candidates", None
         )
@@ -78,8 +77,10 @@ class UltrarmPipe(BaseRewardModel):
             for rejected_candidate in rejected_candidates:
                 self.check_candidate(rejected_candidate)
 
+        time_cost = []
         rewards = []
         for idx, _ in enumerate(candidates):
+            _t = time.time()
             ultrarm_text = ultrarm_template.format(
                 instruction=instruction,
                 completion=candidates[idx],
@@ -97,5 +98,8 @@ class UltrarmPipe(BaseRewardModel):
                 rewards.append(chosen_reward - rejected_reward)
             else:
                 rewards.append(chosen_reward)
+            time_cost.append(time.time() - _t)
 
-        return [c for _, c in sorted(zip(rewards, candidates), reverse=True)[:top_k]]
+        return [
+            c for _, c in sorted(zip(rewards, candidates), reverse=True)[:top_k]
+        ], time_cost

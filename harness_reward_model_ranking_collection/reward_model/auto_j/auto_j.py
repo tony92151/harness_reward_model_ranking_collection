@@ -1,12 +1,13 @@
-from functools import lru_cache
 import os
+import time
+from functools import lru_cache
+
 import torch
 from vllm import LLM, SamplingParams
 
 from ..base import BaseRewardModel
-from .constants_prompt import (
-    build_autoj_input,
-)  # constants_prompt -> codes/constants_prompt.py
+from .constants_prompt import \
+    build_autoj_input  # constants_prompt -> codes/constants_prompt.py
 
 
 # https://github.com/GAIR-NLP/auto-j/tree/main=
@@ -57,18 +58,19 @@ class AutoJPipe(BaseRewardModel):
         outputs = self.llm.generate(input_pairwise, sampling_params)
         judgment = outputs[0].text
         return extract_pariwise_result(judgment)
-    
+
     def get_reward_candidates(
         self, instruction: str, candidates: list[str], top_k: int = 3, **kwargs
-    ) -> list[str]:
-
+    ) -> tuple[list[str], list[float]]:
         use_pairwise: bool = kwargs.get("use_pairwise", False)
 
         max_tokens = os.getenv("MAX_NEW_TOKEN", 1024)
 
         if not use_pairwise:
+            time_cost = []
             rewards = []
             for candidate in candidates:
+                _t = time.time()
                 input_single = build_autoj_input(
                     prompt=instruction, resp1=candidate, resp2=None, protocol="single"
                 )  # for single response evaluation
@@ -80,8 +82,9 @@ class AutoJPipe(BaseRewardModel):
                 judgment = outputs[0].outputs[0].text
                 score = extract_single_rating(judgment)
                 rewards.append(score)
+                time_cost.append(time.time() - _t)
             return [
                 c for _, c in sorted(zip(rewards, candidates), reverse=True)[:top_k]
-            ]
+            ], time_cost
         else:
             raise NotImplementedError("Pairwise comparison is not implemented yet")
