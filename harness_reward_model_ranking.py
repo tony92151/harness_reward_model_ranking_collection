@@ -116,7 +116,7 @@ class RewardModelRanking(LM):
             cache[request.args[0]] = {
                 "candidate_dict": {
                     m: {"text": c, "latency": t}
-                    for c, m, t in zip(self.models, candidate_list, time_cost)
+                    for m, c, t in zip(self.models, candidate_list, time_cost)
                 },
                 "final_candidate_model": self.models[
                     candidate_list.index(rank_result[0])
@@ -124,7 +124,7 @@ class RewardModelRanking(LM):
                 "final_rank_result": rank_result[0],
             }
 
-        if os.getenv("TASK") and self.cache_path and os.getenv("MODEL"):
+        if os.getenv("TASK") and self.cache_path:
             os.makedirs(self.cache_path, exist_ok=True)
 
             combine_models_ = "_".join(
