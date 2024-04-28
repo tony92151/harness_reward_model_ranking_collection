@@ -38,8 +38,8 @@ class RewardModelRanking(LM):
         ), "Models are not provided. Use | to separate the models."
         self.models = self.models.split("|")
 
-        self.cache_path = self.rm_kwargs.get("cache_path", None)
-        assert self.cache_path is not None, "Cache path is not provided."
+        self.cache_path = os.getenv("HARNESS_HF_CACHE", None)
+        assert self.cache_path is not None, "Cache path is not provided. Please set HARNESS_HF_CACHE at the environment variable."
 
         print(f"Reward model: {self.rm_name}")
         self.reward_model_pipe = RewardModelRankingEntry(
@@ -124,14 +124,14 @@ class RewardModelRanking(LM):
                 "final_rank_result": rank_result[0],
             }
 
-        if os.getenv("TASK") and os.getenv("HARNESS_HF_CACHE") and os.getenv("MODEL"):
-            os.makedirs(os.getenv("HARNESS_HF_CACHE"), exist_ok=True)
+        if os.getenv("TASK") and self.cache_path and os.getenv("MODEL"):
+            os.makedirs(self.cache_path, exist_ok=True)
 
             combine_models_ = "_".join(
                 [target_model.replace("/", "-") for target_model in self.models]
             )
             save_path = os.path.join(
-                os.getenv("HARNESS_HF_CACHE"),
+                self.cache_path,
                 f'{self.rm_name}_{os.getenv("TASK")}_{combine_models_}.pt',
             )
             print(f"Save to cache {save_path}")
