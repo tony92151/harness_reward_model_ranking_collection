@@ -3,6 +3,7 @@ import os
 from datetime import timedelta
 from pathlib import Path
 from typing import List, Literal, Optional, Tuple, Union
+import time
 
 import torch
 import torch.nn.functional as F
@@ -35,8 +36,8 @@ from lm_eval.models.utils import (
 )
 
 
-from optimum_benchmark.trackers.latency import PerTokenLatencyLogitsProcessor
-from transformers import LogitsProcessorList
+# from optimum_benchmark.trackers.latency import PerTokenLatencyLogitsProcessor
+# from transformers import LogitsProcessorList
 
 eval_logger = utils.eval_logger
 
@@ -1197,22 +1198,30 @@ class HFLM(TemplateLM):
                 kwargs["max_length"] = context_enc.shape[1] + max_gen_toks
             
 
-            device_str = f"{self.model.device.type}:{self.model.device.index}"
-            latency_tracker = PerTokenLatencyLogitsProcessor(device=device_str, backend="torch")
-            kwargs['logits_processor'] = LogitsProcessorList([latency_tracker])
+            # device_str = f"{self.model.device.type}:{self.model.device.index}"
+            # latency_tracker = PerTokenLatencyLogitsProcessor(device=device_str, backend="torch")
+            # kwargs['logits_processor'] = LogitsProcessorList([latency_tracker])
             
-            # perform batched generation
-            with latency_tracker.track():
-                cont = self._model_generate(
+            # # perform batched generation
+            # with latency_tracker.track():
+            #     cont = self._model_generate(
+            #         context=context_enc,
+            #         attention_mask=attn_masks,
+            #         stop=until,
+            #         **kwargs,
+            #     )
+            t = time.time()
+            cont = self._model_generate(
                     context=context_enc,
                     attention_mask=attn_masks,
                     stop=until,
                     **kwargs,
                 )
+            generate_latency = time.time() - t
 
-            batch_per_token_latency = latency_tracker.get_per_token_latency().mean
-            batch_prefill_latency = latency_tracker.get_prefill_latency().mean
-            batch_decode_latency = latency_tracker.get_decode_latency().mean
+            # batch_per_token_latency = latency_tracker.get_per_token_latency().mean
+            # batch_prefill_latency = latency_tracker.get_prefill_latency().mean
+            # batch_decode_latency = latency_tracker.get_decode_latency().mean
 
             cont_toks_list = cont.tolist()
             for cont_toks, context in zip(cont_toks_list, contexts):
@@ -1232,9 +1241,10 @@ class HFLM(TemplateLM):
                 res.append(s)
                 res_latency.append(
                     {
-                        "per_token_latency": batch_per_token_latency,
-                        "prefill_latency": batch_prefill_latency,
-                        "decode_latency": batch_decode_latency,
+                        # "per_token_latency": batch_per_token_latency,
+                        # "prefill_latency": batch_prefill_latency,
+                        # "decode_latency": batch_decode_latency,
+                        "generate_latency": generate_latency,
                         "num_generate_tokens": len(cont_toks),
                     }
                 )
@@ -1243,7 +1253,6 @@ class HFLM(TemplateLM):
                 pbar.update(1)
         # reorder this group of results back to original unsorted form
         res = re_ords.get_original(res)
-        res_latency = re_ords.get_original(res_latency)
 
         pbar.close()
 
