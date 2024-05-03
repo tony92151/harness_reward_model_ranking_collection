@@ -1144,6 +1144,7 @@ class HFLM(TemplateLM):
             group_by="gen_kwargs",
             group_fn=lambda x: x[1],
         )
+        first_warmup_done = False
         chunks = re_ords.get_batched(n=batch_size, batch_fn=batch_fn)
         for chunk in chunks:
             contexts, all_gen_kwargs = zip(*chunk)
@@ -1210,6 +1211,17 @@ class HFLM(TemplateLM):
             #         stop=until,
             #         **kwargs,
             #     )
+            if not first_warmup_done:
+                eval_logger.info("############### warmup manually ###############")
+                cont = self._model_generate(
+                    context=context_enc,
+                    attention_mask=attn_masks,
+                    stop=until,
+                    **kwargs,
+                )
+                first_warmup_done = True
+                
+            
             t = time.time()
             cont = self._model_generate(
                     context=context_enc,
