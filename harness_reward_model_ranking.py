@@ -89,6 +89,11 @@ class RewardModelRanking(LM):
     def generate_until(self, requests: list[Instance]) -> list[str]:
         if not requests:
             return []
+        
+        print("############### warmup manually ###############")
+        rank_result, time_cost = self.reward_model_pipe.rank(
+                "Show me what you get.", ['Money', 'Love', 'Name'], top_k=3
+        )
 
         cache = {}
         total_results = []
@@ -122,7 +127,7 @@ class RewardModelRanking(LM):
                 "final_rank_result": rank_result[0],
             }
 
-        if os.getenv("TASK") and self.cache_path and os.getenv("MODEL"):
+        if os.getenv("TASK") and self.cache_path:
             os.makedirs(self.cache_path, exist_ok=True)
 
             combine_models_ = "_".join(
