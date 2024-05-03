@@ -48,24 +48,21 @@ class RewardModelRanking(LM):
 
         self._cache = {}
 
-    def get_batched_requests(self, requests: list[Instance], batch_size: int = 64):
-        inp_list = []
-        untils = []
-        for req in requests:
-            print(f"{req=}")
-            exit()
-        for request in [req.args for req in requests]:
-            inp_list.append(request[0])
-            untils.extend(request[1]["until"])
+    # def get_batched_requests(self, requests: list[Instance], batch_size: int = 64):
+    #     inp_list = []
+    #     untils = []
+    #     for request in [req.args for req in requests]:
+    #         inp_list.append(request[0])
+    #         untils.extend(request[1]["until"])
 
-        batch_size = int(batch_size)
-        num_batches = (len(inp_list) + batch_size - 1) // batch_size
+    #     batch_size = int(batch_size)
+    #     num_batches = (len(inp_list) + batch_size - 1) // batch_size
 
-        untils = list(set(untils))
-        print(f"{untils=}")
-        return [
-            list(sub_arr) for sub_arr in np.array_split(inp_list, num_batches)
-        ], untils
+    #     untils = list(set(untils))
+    #     print(f"{untils=}")
+    #     return [
+    #         list(sub_arr) for sub_arr in np.array_split(inp_list, num_batches)
+    #     ], untils
 
     def _get_cache(
         self, target_mode: str, task: str, request_text: str
