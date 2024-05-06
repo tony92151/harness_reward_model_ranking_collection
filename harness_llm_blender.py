@@ -106,6 +106,11 @@ class RewardModelRanking(LM):
     def generate_until(self, requests: list[Instance]) -> list[str]:
         if not requests:
             return []
+        
+        print("############### warmup manually ###############")
+        rank_result, time_cost = get_llm_blender_pairwise_ranks(
+                self.llm_blender,  "Show me what you get.", ['Money', 'Love', 'Name']
+            )
 
         cache = {}
         total_results = []
