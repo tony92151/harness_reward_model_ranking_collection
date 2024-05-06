@@ -45,6 +45,7 @@ def get_llm_blender_pairwise_ranks(
         instructions=instruction,
         return_scores=False,
         batch_size=1,
+        disable_tqdm=True,
     )
     time_cost = time.time() - t
 
@@ -127,22 +128,24 @@ class RewardModelRanking(LM):
 
             instruction = request.args[0].split("\n\n")[-1]
             # print(f"{candidate_list=}")
+            if self.ranker_only:
+                rank_result, time_cost = get_llm_blender_pairwise_ranks(
+                    self.llm_blender, instruction, candidate_list
+                )
 
-            rank_result, time_cost = get_llm_blender_pairwise_ranks(
-                self.llm_blender, instruction, candidate_list
-            )
-
-            total_results.append(rank_result[0])
-            cache[request.args[0]] = {
-                "candidate_dict": {
-                    m: {"text": c, "latency": t}
-                    for c, m, t in zip(self.models, candidate_list, time_cost)
-                },
-                "final_candidate_model": self.models[
-                    candidate_list.index(rank_result[0])
-                ],
-                "final_rank_result": rank_result[0],
-            }
+                total_results.append(rank_result[0])
+                cache[request.args[0]] = {
+                    "candidate_dict": {
+                        m: {"text": c, "latency": t}
+                        for c, m, t in zip(self.models, candidate_list, time_cost)
+                    },
+                    "final_candidate_model": self.models[
+                        candidate_list.index(rank_result[0])
+                    ],
+                    "final_rank_result": rank_result[0],
+                }
+            else:
+                pass
 
         if os.getenv("TASK") and self.cache_path:
             os.makedirs(self.cache_path, exist_ok=True)
@@ -150,10 +153,17 @@ class RewardModelRanking(LM):
             combine_models_ = "_".join(
                 [target_model.replace("/", "-") for target_model in self.models]
             )
-            save_path = os.path.join(
-                self.cache_path,
-                f'llm-blender_{os.getenv("TASK")}_{combine_models_}.pt',
-            )
+
+            if self.ranker_only:
+                save_path = os.path.join(
+                    self.cache_path,
+                    f'llm-blender_ranker_only_{os.getenv("TASK")}_{combine_models_}.pt',
+                )
+            else:
+                save_path = os.path.join(
+                    self.cache_path,
+                    f'llm-blender_{os.getenv("TASK")}_{combine_models_}.pt',
+                )
             print(f"Save to cache {save_path}")
             torch.save(cache, save_path)
 
