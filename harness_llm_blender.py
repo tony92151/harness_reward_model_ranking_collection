@@ -6,6 +6,8 @@ from collections import defaultdict
 from importlib.util import find_spec
 from typing import List, Literal, Optional, Tuple, Union
 
+sys.path.append("/home/azureuser/LLM-Blender-harness")
+
 import llm_blender
 import numpy as np
 import torch
@@ -14,9 +16,6 @@ from lm_eval.api.instance import Instance
 from lm_eval.api.model import LM
 from lm_eval.api.registry import register_model
 from tqdm import tqdm
-
-from harness_reward_model_ranking_collection.entry import (
-    REWARD_MODEL_MAP, RewardModelRankingEntry)
 
 
 def init_llm_blender() -> llm_blender.Blender:
@@ -37,7 +36,7 @@ def get_llm_blender_pairwise_ranks(
     llm_blender: llm_blender.Blender,
     input: str,
     candidates: list[str],
-    instruction: str | None,
+    instruction: str | None = None,
 ) -> list[list[int]]:
     t = time.time()
     ranks = llm_blender.rank(
@@ -70,7 +69,7 @@ class RewardModelRanking(LM):
         ), "Models are not provided. Use | to separate the models."
         self.models = self.models.split("|")
 
-        self.ranker_only = self.llmb_kwargs.get("ranker_only", False)
+        self.ranker_only = self.llmb_kwargs.get("ranker_only", False) == "True"
 
         self.cache_path = os.getenv("HARNESS_HF_CACHE", None)
         assert (
@@ -106,11 +105,11 @@ class RewardModelRanking(LM):
     def generate_until(self, requests: list[Instance]) -> list[str]:
         if not requests:
             return []
-        
+
         print("############### warmup manually ###############")
         rank_result, time_cost = get_llm_blender_pairwise_ranks(
-                self.llm_blender,  "Show me what you get.", ['Money', 'Love', 'Name']
-            )
+            self.llm_blender, "Show me what you get.", ["Money", "Love", "Name"]
+        )
 
         cache = {}
         total_results = []
@@ -153,7 +152,7 @@ class RewardModelRanking(LM):
             )
             save_path = os.path.join(
                 self.cache_path,
-                f'{self.rm_name}_{os.getenv("TASK")}_{combine_models_}.pt',
+                f'llm-blender_{os.getenv("TASK")}_{combine_models_}.pt',
             )
             print(f"Save to cache {save_path}")
             torch.save(cache, save_path)
