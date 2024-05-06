@@ -1,25 +1,25 @@
 import copy
 import os
 import sys
+import time
 from collections import defaultdict
 from importlib.util import find_spec
 from typing import List, Literal, Optional, Tuple, Union
 
+import llm_blender
 import numpy as np
 import torch
+from llm_blender.blender.blender_utils import get_topk_candidates_from_ranks
 from lm_eval.api.instance import Instance
 from lm_eval.api.model import LM
 from lm_eval.api.registry import register_model
 from tqdm import tqdm
-import time
+
 from harness_reward_model_ranking_collection.entry import (
     REWARD_MODEL_MAP, RewardModelRankingEntry)
 
-import llm_blender
-from llm_blender.blender.blender_utils import get_topk_candidates_from_ranks
 
-def init_llm_blender(device: torch.device) -> llm_blender.Blender:
-
+def init_llm_blender() -> llm_blender.Blender:
     # gf = GenFuserConfig(model_name="meta-llama/Llama-2-7b-hf")
 
     blender = llm_blender.Blender()
@@ -32,52 +32,52 @@ def init_llm_blender(device: torch.device) -> llm_blender.Blender:
     )  # load fuser checkpoint if you want to use pre-trained fuser; or you can use ranker only
     return blender
 
+
 def get_llm_blender_pairwise_ranks(
     llm_blender: llm_blender.Blender,
-    instruction:str,
-    input: list[str],
+    input: str,
     candidates: list[str],
+    instruction: str | None,
 ) -> list[list[int]]:
     t = time.time()
     ranks = llm_blender.rank(
-        input, [candidates], instructions=[instruction], return_scores=False, batch_size=1
+        [input],
+        [candidates],
+        instructions=instruction,
+        return_scores=False,
+        batch_size=1,
     )
     time_cost = time.time() - t
-    return ranks
+
+    topk_candidates = get_topk_candidates_from_ranks(ranks, [candidates], top_k=1)
+    topk_candidates = topk_candidates[0].tolist()
+
+    return topk_candidates, [time_cost, time_cost]
 
 
-
-@register_model("rmr", "reward_model_ranking")
+@register_model("llm_blender", "llmblender")
 class RewardModelRanking(LM):
     def __init__(self, batch_size: Optional[Union[int, str]] = 1, **kwargs) -> None:
         super().__init__()
         self.batch_size = batch_size
 
-        self.rm_kwargs = kwargs if kwargs else {}
+        self.llmb_kwargs = kwargs if kwargs else {}
 
-        if self.rm_kwargs.get("rm_name", None) is None:
-            raise ValueError("Reward model name is not provided.")
+        self.models = self.llmb_kwargs.get("models", None)
 
-        self.rm_name = self.rm_kwargs.get("rm_name", None)
-        assert (
-            self.rm_name in REWARD_MODEL_MAP.keys()
-        ), f"Reward model {self.rm_name} is not supported, supported reward models are {REWARD_MODEL_MAP.keys()}."
-
-        self.models = self.rm_kwargs.get("models", None)
         assert (
             self.models is not None
         ), "Models are not provided. Use | to separate the models."
         self.models = self.models.split("|")
 
-        self.ranker_only = self.rm_kwargs.get("ranker_only", False)
+        self.ranker_only = self.llmb_kwargs.get("ranker_only", False)
 
         self.cache_path = os.getenv("HARNESS_HF_CACHE", None)
-        assert self.cache_path is not None, "Cache path is not provided. Please set HARNESS_HF_CACHE at the environment variable."
+        assert (
+            self.cache_path is not None
+        ), "Cache path is not provided. Please set HARNESS_HF_CACHE at the environment variable."
 
-        print(f"Reward model: {self.rm_name}")
-        self.reward_model_pipe = RewardModelRankingEntry(
-            reward_model_id=self.rm_name, **self.rm_kwargs
-        )
+        self.llm_blender = init_llm_blender()
 
         self._cache = {}
 
@@ -119,12 +119,13 @@ class RewardModelRanking(LM):
                 assert (
                     cache_value is not None
                 ), f"Cache value for {target_model} is not found. Please check the cache file."
-                candidate_list.append(cache_value['response'])
+                candidate_list.append(cache_value["response"])
 
             instruction = request.args[0].split("\n\n")[-1]
             # print(f"{candidate_list=}")
-            rank_result, time_cost = self.reward_model_pipe.rank(
-                instruction, candidate_list, top_k=3
+
+            rank_result, time_cost = get_llm_blender_pairwise_ranks(
+                self.llm_blender, instruction, candidate_list
             )
 
             total_results.append(rank_result[0])
@@ -139,7 +140,7 @@ class RewardModelRanking(LM):
                 "final_rank_result": rank_result[0],
             }
 
-        if os.getenv("TASK") and self.cache_path and os.getenv("MODEL"):
+        if os.getenv("TASK") and self.cache_path:
             os.makedirs(self.cache_path, exist_ok=True)
 
             combine_models_ = "_".join(
