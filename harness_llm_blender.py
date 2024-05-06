@@ -55,7 +55,7 @@ def get_llm_blender_pairwise_ranks(
     return topk_candidates, [time_cost, time_cost]
 
 
-@register_model("llm_blender", "llmblender")
+@register_model("llm_blender_ranker", "llmblenderranker")
 class RewardModelRanking(LM):
     def __init__(self, batch_size: Optional[Union[int, str]] = 1, **kwargs) -> None:
         super().__init__()
@@ -69,8 +69,6 @@ class RewardModelRanking(LM):
             self.models is not None
         ), "Models are not provided. Use | to separate the models."
         self.models = self.models.split("|")
-
-        self.ranker_only = self.llmb_kwargs.get("ranker_only", False) == "True"
 
         self.cache_path = os.getenv("HARNESS_HF_CACHE", None)
         assert (
@@ -128,24 +126,23 @@ class RewardModelRanking(LM):
 
             instruction = request.args[0].split("\n\n")[-1]
             # print(f"{candidate_list=}")
-            if self.ranker_only:
-                rank_result, time_cost = get_llm_blender_pairwise_ranks(
-                    self.llm_blender, instruction, candidate_list
-                )
 
-                total_results.append(rank_result[0])
-                cache[request.args[0]] = {
-                    "candidate_dict": {
-                        m: {"text": c, "latency": t}
-                        for c, m, t in zip(self.models, candidate_list, time_cost)
-                    },
-                    "final_candidate_model": self.models[
-                        candidate_list.index(rank_result[0])
-                    ],
-                    "final_rank_result": rank_result[0],
-                }
-            else:
-                pass
+            rank_result, time_cost = get_llm_blender_pairwise_ranks(
+                self.llm_blender, instruction, candidate_list
+            )
+
+            total_results.append(rank_result[0])
+            cache[request.args[0]] = {
+                "candidate_dict": {
+                    m: {"text": c, "latency": t}
+                    for c, m, t in zip(self.models, candidate_list, time_cost)
+                },
+                "final_candidate_model": self.models[
+                    candidate_list.index(rank_result[0])
+                ],
+                "final_rank_result": rank_result[0],
+            }
+
 
         if os.getenv("TASK") and self.cache_path:
             os.makedirs(self.cache_path, exist_ok=True)
@@ -154,16 +151,11 @@ class RewardModelRanking(LM):
                 [target_model.replace("/", "-") for target_model in self.models]
             )
 
-            if self.ranker_only:
-                save_path = os.path.join(
-                    self.cache_path,
-                    f'llm-blender_ranker_only_{os.getenv("TASK")}_{combine_models_}.pt',
-                )
-            else:
-                save_path = os.path.join(
-                    self.cache_path,
-                    f'llm-blender_{os.getenv("TASK")}_{combine_models_}.pt',
-                )
+            save_path = os.path.join(
+                self.cache_path,
+                f'llm-blender_ranker_{os.getenv("TASK")}_{combine_models_}.pt',
+            )
+
             print(f"Save to cache {save_path}")
             torch.save(cache, save_path)
 
