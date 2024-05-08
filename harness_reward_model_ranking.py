@@ -116,14 +116,15 @@ class RewardModelRanking(LM):
             )
 
             total_results.append(rank_result[0])
+
+            final_candidate_model = self.models[candidate_list.index(rank_result[0])] if rank_result[0] in candidate_list else "not found"
+            
             cache[request.args[0]] = {
                 "candidate_dict": {
                     m: {"text": c, "latency": t}
                     for c, m, t in zip(self.models, candidate_list, time_cost)
                 },
-                "final_candidate_model": self.models[
-                    candidate_list.index(rank_result[0])
-                ],
+                "final_candidate_model": final_candidate_model,
                 "final_rank_result": rank_result[0],
             }
 
