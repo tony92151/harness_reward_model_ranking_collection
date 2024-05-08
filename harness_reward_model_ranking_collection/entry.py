@@ -1,9 +1,10 @@
-from .reward_model import AutoJPipe, OasstrmPipe, UltrarmPipe
+from .reward_model import AutoJPipe, OasstrmPipe, UltrarmPipe, LlmBlenderPipe
 
 REWARD_MODEL_MAP = {
     "ultrarm": UltrarmPipe,
     "autoj": AutoJPipe,
     "oassterm": OasstrmPipe,
+    "llm_blender": LlmBlenderPipe,
 }
 
 
