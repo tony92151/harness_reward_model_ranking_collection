@@ -26,15 +26,16 @@ def init_llm_blender(use_fuser: bool) -> llm_blender.Blender:
 
 class LlmBlenderPipe(BaseRewardModel):
     def __init__(self, **kwargs):
-        use_fuser = False
-        if "use_fuser" in kwargs and kwargs["use_fuser"] in ["True", "true", "1"]:
-            use_fuser = True
+        self.use_fuser = False
+        if "use_fuser" in kwargs and kwargs["use_fuser"]:
+            self.use_fuser = True
+            print(f"{self.use_fuser=}")
 
         self.max_new_tokens = 128
         if "max_new_tokens" in kwargs:
             self.max_new_tokens = int(kwargs["max_new_tokens"])
 
-        self.llm_blender = init_llm_blender(use_fuser=use_fuser)
+        self.llm_blender = init_llm_blender(use_fuser=self.use_fuser)
 
     def get_reward_candidates(
         self, instruction: str, candidates: list[str], top_k: int = 3
