@@ -122,7 +122,7 @@ class RewardModelRanking(LM):
             cache[request.args[0]] = {
                 "candidate_dict": {
                     m: {"text": c, "latency": t}
-                    for c, m, t in zip(self.models, candidate_list, time_cost)
+                    for m, c, t in zip(self.models, candidate_list, time_cost)
                 },
                 "final_candidate_model": final_candidate_model,
                 "final_rank_result": rank_result[0],
