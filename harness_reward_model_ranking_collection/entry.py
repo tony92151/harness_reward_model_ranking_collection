@@ -25,3 +25,14 @@ class RewardModelRankingEntry:
         self, instruction: str, candidates: list[str], top_k: int = 3, **kwargs
     ) -> tuple[list[str], list[float]]:
         return self.pipe.get_reward_candidates(instruction, candidates, top_k, **kwargs)
+
+    def batch_rank(
+        self,
+        instruction: list[str],
+        candidates: list[list[str]],
+        top_k: int = 3,
+        **kwargs
+    ) -> tuple[list[list[str]], list[list[float]]]:
+        return self.pipe.get_batch_reward_candidates(
+            instruction, candidates, top_k, **kwargs
+        )

@@ -16,7 +16,7 @@ from harness_reward_model_ranking_collection.entry import (
     REWARD_MODEL_MAP, RewardModelRankingEntry)
 
 
-@register_model("llm_blender_ranker", "llmblenderranker")
+@register_model("llm_blender", "llmblender")
 class RewardModelRanking(LM):
     def __init__(self, batch_size: Optional[Union[int, str]] = 1, **kwargs) -> None:
         super().__init__()
@@ -24,11 +24,7 @@ class RewardModelRanking(LM):
 
         self.rm_kwargs = kwargs if kwargs else {}
 
-        self.rm_name = "llb_blender"
-
-        assert (
-            self.rm_name in REWARD_MODEL_MAP.keys()
-        ), f"Reward model {self.rm_name} is not supported, supported reward models are {REWARD_MODEL_MAP.keys()}."
+        self.rm_name = "llm_blender"
 
         self.models = self.rm_kwargs.get("models", None)
         assert (
@@ -37,7 +33,9 @@ class RewardModelRanking(LM):
         self.models = self.models.split("|")
 
         self.cache_path = os.getenv("HARNESS_HF_CACHE", None)
-        assert self.cache_path is not None, "Cache path is not provided. Please set HARNESS_HF_CACHE at the environment variable."
+        assert (
+            self.cache_path is not None
+        ), "Cache path is not provided. Please set HARNESS_HF_CACHE at the environment variable."
 
         self.rm_kwargs["use_fuser"] = True
 
@@ -47,6 +45,8 @@ class RewardModelRanking(LM):
         )
 
         self._cache = {}
+
+        self.batch_size = 1
 
     # def get_batched_requests(self, requests: list[Instance], batch_size: int = 64):
     #     inp_list = []
@@ -63,6 +63,21 @@ class RewardModelRanking(LM):
     #     return [
     #         list(sub_arr) for sub_arr in np.array_split(inp_list, num_batches)
     #     ], untils
+    def get_batched_requests(self, requests, batch_size: int = 64):
+        inp_list = []
+        untils = []
+        for request in [req.args for req in requests]:
+            inp_list.append(request[0])
+            untils.extend(request[1]["until"])
+
+        batch_size = int(batch_size)
+        num_batches = (len(inp_list) + batch_size - 1) // batch_size
+
+        untils = list(set(untils))
+        print(f"{untils=}")
+        return [
+            list(sub_arr) for sub_arr in np.array_split(inp_list, num_batches)
+        ], untils
 
     def _get_cache(
         self, target_mode: str, task: str, request_text: str
@@ -89,44 +104,73 @@ class RewardModelRanking(LM):
     def generate_until(self, requests: list[Instance]) -> list[str]:
         if not requests:
             return []
-        
+
         print("############### warmup manually ###############")
-        rank_result, time_cost = self.reward_model_pipe.rank(
-                "Show me what you get.", ['Money', 'Love', 'Name'], top_k=3
+        _, _ = self.reward_model_pipe.rank(
+            "Show me what you get.", ["Money", "Love", "Name"], top_k=3
         )
+
+        batch_request = self.get_batched_requests(requests, self.batch_size)
 
         cache = {}
         total_results = []
-        for request in tqdm(requests):
-            candidate_list: list[str] = []
+        for requests in tqdm(batch_request):
+            batch_candidate_list: list[list[str]] = []
+            batch_instruction: list[str] = []
 
-            for target_model in self.models:
-                cache_value = self._get_cache(
-                    target_model, os.getenv("TASK"), request.args[0]
-                )
-                assert (
-                    cache_value is not None
-                ), f"Cache value for {target_model} is not found. Please check the cache file."
-                candidate_list.append(cache_value['response'])
+            for request in requests:
+                candidate_list: list[str] = []
+                for target_model in self.models:
+                    cache_value = self._get_cache(
+                        target_model, os.getenv("TASK"), request
+                    )
+                    assert (
+                        cache_value is not None
+                    ), f"Cache value for {target_model} is not found. Please check the cache file."
+                    candidate_list.append(cache_value["response"])
 
-            instruction = request.args[0].split("\n\n")[-1]
-            # print(f"{candidate_list=}")
-            rank_result, time_cost = self.reward_model_pipe.rank(
-                instruction, candidate_list, top_k=3
+                batch_candidate_list.append(candidate_list)
+                instruction = request.split("\n\n")[-1]
+                batch_instruction.append(instruction)
+
+            rank_results, time_costs = self.reward_model_pipe.batch_rank(
+                batch_instruction, batch_instruction, top_k=3
             )
+            final_results = [r[0] for r in rank_results]
+            total_results.extend(final_results)
 
-            total_results.append(rank_result[0])
+            batch_final_candidate_model = []
+            for candidate_list, final_result in zip(
+                batch_candidate_list, final_results
+            ):
+                if final_result in candidate_list:
+                    batch_final_candidate_model.append(
+                        self.models[candidate_list.index(final_result)]
+                    )
+                else:
+                    batch_final_candidate_model.append("not found")
 
-            final_candidate_model = self.models[candidate_list.index(rank_result[0])] if rank_result[0] in candidate_list else "not found"
-            
-            cache[request.args[0]] = {
-                "candidate_dict": {
-                    m: {"text": c, "latency": t}
-                    for c, m, t in zip(self.models, candidate_list, time_cost)
-                },
-                "final_candidate_model": final_candidate_model,
-                "final_rank_result": rank_result[0],
-            }
+            for (
+                request,
+                candidate_list,
+                final_result,
+                final_candidate_model,
+                time_cost,
+            ) in zip(
+                requests,
+                batch_candidate_list,
+                final_results,
+                batch_final_candidate_model,
+                time_costs,
+            ):
+                cache[request] = {
+                    "candidate_dict": {
+                        m: {"text": c, "latency": t}
+                        for m, c, t in zip(self.models, candidate_list, time_cost)
+                    },
+                    "final_candidate_model": final_candidate_model,
+                    "final_rank_result": final_result,
+                }
 
         if os.getenv("TASK") and self.cache_path:
             os.makedirs(self.cache_path, exist_ok=True)
