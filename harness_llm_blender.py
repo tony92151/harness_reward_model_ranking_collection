@@ -46,7 +46,7 @@ class RewardModelRanking(LM):
 
         self._cache = {}
 
-        self.batch_size = 1
+        self.batch_size = 8
 
     # def get_batched_requests(self, requests: list[Instance], batch_size: int = 64):
     #     inp_list = []
