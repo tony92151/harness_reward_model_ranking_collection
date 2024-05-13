@@ -39,11 +39,13 @@ class LlmBlenderPipe(BaseRewardModel):
 
 
         self.batch_size = kwargs.get("batch_size", 4)
-        self.stop_sequences = kwargs.get("stop_sequences", [])
+        # self.stop_sequences = kwargs.get("stop_sequences", [])
 
     def get_reward_candidates(
-        self, instruction: str, candidates: list[str], top_k: int = 3
+        self, instruction: str, candidates: list[str], top_k: int = 3,  **kwargs
     ) -> tuple[list[str], list[float]]:
+        stop_sequences = kwargs.get("stop_sequences", [])
+        
         t = time.time()
         ranks = self.llm_blender.rank(
             [instruction],
@@ -66,7 +68,7 @@ class LlmBlenderPipe(BaseRewardModel):
                 topk_candidates,
                 instructions=None,
                 batch_size=1,
-                stop_sequences=[],
+                stop_sequences=stop_sequences,
                 **generate_kwargs
             )
             topk_candidates_list = [fuse_generations[0]]
@@ -75,7 +77,9 @@ class LlmBlenderPipe(BaseRewardModel):
 
         return topk_candidates_list, [time_cost, time_cost]
     
-    def get_batch_reward_candidates(self, instruction: list[str], candidates: list[list[str]], top_k: int = 3) -> tuple[list[list[str]], list[list[float]]]:
+    def get_batch_reward_candidates(self, instruction: list[str], candidates: list[list[str]], top_k: int = 3, **kwargs) -> tuple[list[list[str]], list[list[float]]]:
+        stop_sequences = kwargs.get("stop_sequences", [])
+        
         t = time.time()
         ranks = self.llm_blender.rank(
             instruction,
@@ -100,7 +104,7 @@ class LlmBlenderPipe(BaseRewardModel):
                 topk_candidates,
                 instructions=None,
                 batch_size=self.batch_size,
-                stop_sequences=self.stop_sequences,
+                stop_sequences=stop_sequences,
                 **generate_kwargs
             )
             batch_topk_candidates_list = [[fuse_generation]for fuse_generation in fuse_generations]

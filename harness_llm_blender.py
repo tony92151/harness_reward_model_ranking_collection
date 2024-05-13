@@ -110,7 +110,7 @@ class RewardModelRanking(LM):
             "Show me what you get.", ["Money", "Love", "Name"], top_k=3
         )
 
-        batch_request = self.get_batched_requests(requests, self.batch_size)
+        batch_request, until = self.get_batched_requests(requests, self.batch_size)
 
         cache = {}
         total_results = []
@@ -134,7 +134,7 @@ class RewardModelRanking(LM):
                 batch_instruction.append(instruction)
 
             rank_results, time_costs = self.reward_model_pipe.batch_rank(
-                batch_instruction, batch_instruction, top_k=3
+                batch_instruction, batch_candidate_list, top_k=1, stop_sequences=until
             )
             final_results = [r[0] for r in rank_results]
             total_results.extend(final_results)
