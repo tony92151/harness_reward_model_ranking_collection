@@ -38,14 +38,14 @@ class LlmBlenderPipe(BaseRewardModel):
         self.llm_blender = init_llm_blender(use_fuser=self.use_fuser)
 
 
-        self.batch_size = kwargs.get("batch_size", 4)
+        self.batch_size = kwargs.get("batch_size", 8)
         # self.stop_sequences = kwargs.get("stop_sequences", [])
 
     def get_reward_candidates(
         self, instruction: str, candidates: list[str], top_k: int = 3,  **kwargs
     ) -> tuple[list[str], list[float]]:
         stop_sequences = kwargs.get("stop_sequences", [])
-        
+
         t = time.time()
         ranks = self.llm_blender.rank(
             [instruction],
