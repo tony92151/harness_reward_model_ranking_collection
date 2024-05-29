@@ -36,3 +36,7 @@ class RewardModelRankingEntry:
         return self.pipe.get_batch_reward_candidates(
             instruction, candidates, top_k, **kwargs
         )
+    
+    def get_token(self, text: str) -> int:
+        assert isinstance(self.pipe, LlmBlenderPipe), "Only LlmBlenderPipe has get_token method"
+        return self.pipe.get_token(text)

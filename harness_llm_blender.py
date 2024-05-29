@@ -170,7 +170,12 @@ class RewardModelRanking(LM):
                     },
                     "final_candidate_model": final_candidate_model,
                     "final_rank_result": final_result,
+                    "final_generate_tokens": 0,
                 }
+        
+        print("Calculate final generate tokens...")
+        for c in tqdm(cache):
+            cache[c]['final_generate_tokens'] = self.reward_model_pipe.get_token(cache[c]['final_rank_result'])
 
         if os.getenv("TASK") and self.cache_path:
             os.makedirs(self.cache_path, exist_ok=True)
