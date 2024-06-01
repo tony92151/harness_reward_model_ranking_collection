@@ -1237,7 +1237,6 @@ class HFLM(TemplateLM):
 
             cont_toks_list = cont.tolist()
             for cont_toks, context in zip(cont_toks_list, contexts):
-                gen_token_len = len(cont_toks)
                 # discard context + left-padding toks if using causal decoder-only LM
                 if self.AUTO_MODEL_CLASS == transformers.AutoModelForCausalLM:
                     cont_toks = cont_toks[context_enc.shape[1] :]
@@ -1258,7 +1257,7 @@ class HFLM(TemplateLM):
                         # "prefill_latency": batch_prefill_latency,
                         # "decode_latency": batch_decode_latency,
                         "generate_latency": generate_latency,
-                        "num_generate_tokens": gen_token_len,
+                        "num_generate_tokens": len(cont_toks),
                     }
                 )
 
