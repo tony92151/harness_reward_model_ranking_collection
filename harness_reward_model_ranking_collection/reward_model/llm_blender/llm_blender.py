@@ -114,4 +114,4 @@ class LlmBlenderPipe(BaseRewardModel):
         return batch_topk_candidates_list, [[time_cost, time_cost] for _ in batch_topk_candidates_list]
     
     def get_token(self, text: str) -> int:
-        return len(self.fuser_tokenizer(text)) -1
+        return len(self.fuser_tokenizer.encode(text))
